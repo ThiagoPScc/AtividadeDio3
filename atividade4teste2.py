@@ -56,7 +56,9 @@ from sklearn.metrics import (
     roc_auc_score,
     average_precision_score,
     RocCurveDisplay,
-    PrecisionRecallDisplay
+    PrecisionRecallDisplay,
+    roc_curve,
+    roc_auc_score,
 )
 
 from sklearn.model_selection import train_test_split
@@ -143,3 +145,59 @@ for name, model in fitted_models.items():
         "Probabilidades fora do intervalo de 0 a 1!"
 
     print(f"PASSOU: {name} gerou probabilidades válidas.")
+
+sns.set_theme(style="whitegrid")
+resultados = {}
+
+for nome, modelo in fitted_models.items():
+
+    print(f"\n{'='*50}")
+    print(f"AVALIAÇÃO DO MODELO: {nome}")
+    print(f"{'='*50}")
+
+prob_valid = modelo.predict_proba(x_valid)[:, 1]
+melhor_limiar, melhor_f1 = best_f1_threshold(y_valid,prob_valid)
+
+y_prob = modelo.predict_proba(x_test)[:, 1]
+
+y_pred = (y_prob >= melhor_limiar).astype(int)
+
+resultados[nome] = {
+        "y_prob": y_prob,
+        "y_pred": y_pred,
+        "threshold": melhor_limiar
+    }
+
+print(f"Limiar escolhido: {melhor_limiar:.2f}")
+print(f"F1 na validação: {melhor_f1:.4f}")
+
+fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+
+auc = roc_auc_score(y_test, y_prob)
+
+plt.figure(figsize=(8, 5))
+
+plt.plot(
+        fpr,
+        tpr,
+        label=f"ROC Curve (AUC = {auc:.4f})",
+        linewidth=2
+    )
+
+plt.plot(
+        [0, 1],
+        [0, 1],
+        linestyle="--",
+        color="gray",
+        label="Classificador aleatório"
+    )
+
+plt.title(f"Curva ROC - {nome}")
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.legend()
+plt.grid(alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+print(f"AUC: {auc:.2f}")
